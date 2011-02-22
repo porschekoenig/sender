@@ -45,13 +45,29 @@ function SimpleSender:getRecps(rcps, ...)
 	 return rcps
 end
 
+function tableToString(t, delim)
+	 if type(t) == 'string' then return t end
+x
+	 assert(type(t) == 'table')
+	 local delim = delim or ','
+	 local s = ""
+
+	 for i = 1,#t-1  do
+	     s = s .. t[i] .. delim
+	 end 
+
+	 s = s .. t[#t]
+
+	 return s
+end
+
 function SimpleSender:send(data)
 	 assert(type(data) == 'table'
 
 	 self.from = data.from or self.from
  	 
 	 assert(self.from)
-	 assert(type(data.to) == 'table' or type(data.to) == 'table')
+	 assert(type(data.to) == 'table' or type(data.to) == 'string')
 
 	 local cc = data.cc or false
 	 local bcc = data.bcc or false
@@ -63,29 +79,20 @@ function SimpleSender:send(data)
 	 
 	 self.getRcps(rcps, to, cc, bcc)
 
-	 local headers = {rcps, body}	 
+	 local headers = {}
 	 	 
+	 headers.to = tableToString(data.to)
+	 headers.cc = tableToString(cc)
+
+	 headers.subject = subject
+
+	 msg = {headers, body = body}
+
+	 r, e = smtp.send{
+	    from = from,
+	    rcpts = rcpts,
+	    source = smpt.message(msg)
+	 }
+
+	 return r, e
 end
-
-from = "<onkeljojo@onkel.jojo>"
-
-rcpt = {
-  "<jost.degenhardt@googlemail.com>",
-  "<porschekoenig@googlemail.com>",
-  "<jhdfkhskfhshfkhfkhfhhshkfkd@googlemail.com>"
-}
-
-mesgt = {
-  headers = {
-    to = "Jost Degenhardt <jost.degenhardt@googlemail.com",
-    cc = '<jhdfkhskfhshfkhfkhfhhshkfkd@googlemail.com>',
-    subject = "Lua test"
-  },
-  body = "Hallohallo!"
-}
-
-r, e = smtp.send{
-  from = from,
-  rcpt = rcpt, 
-  source = smtp.message(mesgt)
-}
