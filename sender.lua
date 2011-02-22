@@ -11,33 +11,30 @@ function SimpleSender:init(from)
 end
 
 function SimpleSender:formatAddress(ad)
-	 assert(type(ad) == 'string)
+	 assert(type(ad) == 'string')
 
 	 local mail = ad:gmatch("<[A-Za-z0-9%.%%%+%-]+@[A-Za-z0-9%.%%%+%-]+%.%w%w%w?%w?>")
 
 	 if not mail then
-	    return nil, "malformed email-address"
+	    return nil, "malformed email-address: " .. ad
 	 end
-
-	 return mail	   
+	 
+	 return ad	   
 end
 
-function SimpleSender:getRecps(rcps, ...)
-	 assert(type(rcps) == 'table')
+function SimpleSender:getRcps(rcps, ...)
+	 assert(type(rcps) == 'table', "table expected, got " .. type(rcps))
 
-	 for i = 2, #arg do
+	 for i = 1, #arg do
 	     local r = arg[i]
 	     
-	     if type(r) == 'boolean' then
-	     		r = r
-	     elseif type(r) == 'string' then
-	             table.insert(rcps, self.formatAddress(r))
+	     if type(r) == 'string' and #r > 0 then
+	             table.insert(rcps, assert(self:formatAddress(r)))
 	     elseif type(r) ~= 'table' then 
 	     	    return nil, "wrong parameter, expected string or table, got " .. type(r) 
 	     else
-
 		for _, i in ipairs(r) do
-	     	    table.insert(rcps, self.formatAddress(i))
+	     	    table.insert(rcps, assert(self:formatAddress(i)))
 		end
 	     end
 	 end	
@@ -47,8 +44,9 @@ end
 
 function tableToString(t, delim)
 	 if type(t) == 'string' then return t end
-x
-	 assert(type(t) == 'table')
+
+	 assert(type(t) == 'table', "table expected, got " .. type(t))
+
 	 local delim = delim or ','
 	 local s = ""
 
@@ -61,38 +59,56 @@ x
 	 return s
 end
 
+function SimpleSender:sendit(from, to)
+	 return self:send({from=from, to=to})
+end
+
 function SimpleSender:send(data)
-	 assert(type(data) == 'table'
+	 assert(type(data) == 'table', 'table expected, got ' .. type(data))
 
 	 self.from = data.from or self.from
  	 
 	 assert(self.from)
-	 assert(type(data.to) == 'table' or type(data.to) == 'string')
+	 assert(type(data.to) == 'table' or type(data.to) == 'string', 'table or string expected, got ' .. type(data.to))
 
-	 local cc = data.cc or false
-	 local bcc = data.bcc or false
+	 local cc = data.cc or ''
+	 local bcc = data.bcc or ''
 	 
 	 local subject = data.subject or NOSUBJECT
 	 local body = data.body or EMPTYMSG
 
-	 local recps = {}
-	 
-	 self.getRcps(rcps, to, cc, bcc)
+	 local rcpt = {}
+	 self:getRcps(rcpt, data.to, cc, bcc)
 
 	 local headers = {}
 	 	 
 	 headers.to = tableToString(data.to)
 	 headers.cc = tableToString(cc)
-
+	
 	 headers.subject = subject
 
-	 msg = {headers, body = body}
+	 msg = {headers = headers, body = body}
 
-	 r, e = smtp.send{
-	    from = from,
-	    rcpts = rcpts,
-	    source = smpt.message(msg)
-	 }
+	 local mt = {from = self.from, rcpt = rcpt, source = smtp.message(msg)}
+
+	print('from: ' .. mt.from)
+	print('to: ' .. msg.headers.to)
+	print('cc: ' .. msg.headers.cc)
+	print('subject: ' .. msg.headers.subject)
+	print('body: ' .. msg.body)
+
+	for k,v in pairs(mt.rcpt) do
+		print("rcpt: ", k, v)
+	end
+
+	 local r, e = smtp.send(mt)
 
 	 return r, e
 end
+
+
+se = SimpleSender:new()
+
+r, e = se:sendit(arg[1], arg[2])
+
+print(r,e)
