@@ -63,7 +63,7 @@ function SimpleSender:send(data)
 	 
 	 self.getRcps(rcps, to, cc, bcc)
 
-	 local headers = 	 
+	 local headers = {rcps}	 
 	 	 
 end
 
